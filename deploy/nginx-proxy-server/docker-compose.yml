@@ -1,0 +1,21 @@
+name: qudo-npm
+
+services:
+  app:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: qudo-npm
+    restart: unless-stopped
+    mem_limit: 400m
+    ports:
+      - '80:80'    # HTTP 트래픽
+      - '443:443'  # HTTPS 트래픽
+      - '81:81'    # 관리자 UI 포트 (이걸로 접속합니다)
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - qudo-net
+
+networks:
+  qudo-net:
+    external: true

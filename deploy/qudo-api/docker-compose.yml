@@ -1,0 +1,30 @@
+name: qudo-api
+
+services:
+  api:
+    image: ${DOCKER_IMAGE}
+    pull_policy: always
+    container_name: qudo-api
+    restart: unless-stopped
+    mem_limit: 1g
+    expose:
+      - "8080"
+    env_file:
+      - ../../.env
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      TZ: Asia/Seoul
+    volumes:
+      - ./data/qudo-api:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - qudo-net
+
+networks:
+  qudo-net:
+    external: true
