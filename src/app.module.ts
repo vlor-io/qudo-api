@@ -21,7 +21,8 @@ import { ShotsModule } from '@/shots/shots.module';
     // 1. 전역 환경변수(Config) 모듈 세팅
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      // .env.develop 가 있으면 로컬 개발용으로 우선 적용, 없는 값만 .env 에서
+      envFilePath: ['.env.develop', '.env'],
       expandVariables: true,
     }),
     
