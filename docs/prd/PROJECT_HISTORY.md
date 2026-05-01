@@ -612,3 +612,166 @@
 | `app/workspace/create.tsx` | `isMounted` |
 | `app/profile-edit/index.tsx` | `isMounted` + `saveTimerRef` |
 | `app/drop/viewer.web.tsx` | `isMounted` + `copyTimerRef` |
+
+---
+
+## [Phase 13] UX 폴리싱 — Toast / Skeleton / Dialog / 튜토리얼 (2026-04-13)
+
+### 배경
+사용자 피드백 품질 향상을 위해 전역 Toast/Dialog 시스템을 구축하고, 초기 로딩 스켈레톤과 탭 전환 애니메이션을 추가. 앱 온보딩 튜토리얼로 신규 사용자 진입 장벽을 낮춤.
+
+### 1. Toast 시스템 (`components/toast.tsx`)
+
+- 전역 `toast.show(message, options)` API — React context 없이 모듈 레벨 listeners Set 사용
+- `type`: `'default'` | `'success'` | `'error'`
+- `action`: 인라인 버튼 `{ label, onPress }`
+- `<ToastProvider />` — `app/_layout.tsx`에 등록
+- 적용: 캠페인 신청 완료, AI 분류 완료, 이미지 이동, 워크스페이스 보관/복원
+
+### 2. Skeleton 로딩 (`components/skeleton.tsx`)
+
+- `<Skeleton width height borderRadius />` — shimmer pulse 애니메이션
+- `<WorkspaceCardSkeleton />` — 대시보드 700ms 초기 로딩
+- `<CampaignCardSkeleton />` — 캠페인 목록 800ms 초기 로딩
+
+### 3. 탭 전환 페이드 애니메이션
+
+- 대시보드 (진행중/완료/보관함), 캠페인 (배송/방문) 탭 전환 시 적용
+- `Animated.sequence([timing(0, 100ms), timing(1, 180ms)])` — fade out → fade in
+
+### 4. 커스텀 Dialog (`components/dialog.tsx`)
+
+- Alert.alert 전면 대체 — scale spring + opacity fade 애니메이션
+- `dialog.confirm({ title, message, confirmLabel, destructive, onConfirm })`
+- `dialog.alert({ title, message })`
+- `destructive: true` → 빨간색 확인 버튼
+- `<DialogProvider />` — `app/_layout.tsx`에 등록
+- 적용: 앱 종료, 보관/삭제, 로그아웃, 회원탈퇴, 역할 전환, 채널 해제
+
+### 5. 튜토리얼 (`components/tutorial.tsx`)
+
+- 5단계 온보딩 (워크스페이스 생성 → 촬영 → AI 분류 → Web Drop → 캠페인)
+- PanResponder 스와이프 (dx > 40) + 도트 인디케이터
+- `tutorial.showIfFirst()` — AsyncStorage `@qudo_tutorial_seen` 기반 첫 실행 자동 표시
+- `tutorial.show()` — 수동 진입 (워크스페이스 `...` 메뉴, 마이페이지)
+- `<TutorialProvider />` — `app/_layout.tsx`에 등록
+
+### 6. Warning 수정
+
+| 경고 | 수정 내용 |
+|------|----------|
+| `viewer.tsx` default export 누락 | `export function` → `export default function` |
+| `expo-av` deprecated | `expo-video` + `useVideoPlayer` hook + `VideoPlayer` wrapper 컴포넌트로 교체 |
+| `CameraView` children 경고 | `View(absoluteFill)` 래퍼로 siblings 구조로 변경 |
+
+### 신규 파일
+- `components/toast.tsx`
+- `components/skeleton.tsx`
+- `components/dialog.tsx`
+- `components/tutorial.tsx`
+
+### 변경된 파일
+- `app/_layout.tsx` — `DialogProvider`, `ToastProvider`, `TutorialProvider` 등록
+- `app/(tabs)/index.tsx` — 스켈레톤, 탭 페이드, `tutorial.showIfFirst()`, `dialog.confirm`
+- `app/(tabs)/campaign.tsx` — 스켈레톤, 탭 페이드, `dialog.confirm`
+- `app/workspace/[id]/index.tsx` — `toast.show()`, `dialog.confirm`, 튜토리얼 메뉴, expo-video
+- `app/workspace/[id]/camera.tsx` — CameraView siblings 구조
+- `app/mypage.tsx` — `dialog.confirm`, 튜토리얼 진입점
+- `app/drop/viewer.tsx` — default export 추가
+- `app/drop/[token].tsx` — default import 수정
+
+---
+
+## [Phase 14] 프리미엄 시스템 (2026-04-13)
+
+### 배경
+무료/프리미엄 플랜을 분리해 수익 모델을 구축. 업그레이드 전용 화면과 기능 게이트를 구현.
+
+### 1. UserPlan (`stores/user-store.ts`)
+
+- `UserPlan = 'free' | 'premium'` 타입 추가
+- `PLAN_KEY = '@qudo/user_plan'` — AsyncStorage 영속화
+- `hydrate()` → `AsyncStorage.multiGet([STORAGE_KEY, PLAN_KEY])` 동시 복원
+- `getPlan()`, `isPremium()`, `setPlan(plan)` 메서드 추가
+
+### 2. 업그레이드 화면 (`app/upgrade/index.tsx`)
+
+- 히어로: 왕관 아이콘 + "무제한으로 촬영하세요" 슬로건
+- 플랜 선택: 월간(₩9,900) / 연간(₩79,900, 33% 할인 뱃지)
+- 기능 비교표 10행 (Free vs Premium)
+- `feature` query param — 어떤 기능이 트리거했는지 헤더에 표시
+- 하단 CTA: 구독 중이면 "Premium 구독 중" + 해지 버튼, 아니면 "시작하기"
+- IAP 미연동 (Mock — TODO: RevenueCat 또는 expo-in-app-purchases)
+
+### 3. usePremium 훅 (`hooks/use-premium.ts`)
+
+```ts
+const { isPremium, requirePremium } = usePremium();
+// 무료면 /upgrade?feature=기능명 으로 이동 + false 반환
+if (!requirePremium('기능명')) return;
+```
+
+### 4. 프리미엄 게이트 적용
+
+| 위치 | 조건 | 동작 |
+|------|------|------|
+| FAB (대시보드) | 무료 + 진행중 ≥ 3개 | `/upgrade` 이동 |
+| Web Drop 링크 생성 | 무료 | `/upgrade` 이동 |
+| AI 자동 분류 | 무료 + todoId 없는 샷 | 미분류함 저장 + 토스트 안내 |
+
+**AI 분류 게이트 주의사항**: `clearPendingShots(id)` 먼저 호출 후 플랜 체크. 큐를 비우기 전에 화면 이동하면 `useFocusEffect` 루프 발생.
+
+### 5. 마이페이지 플랜 연동 (`app/mypage.tsx`)
+
+- `isPremium` 상태 실시간 구독
+- 프로필 뱃지: Free(회색) → Premium(파란색 #39D0FF)
+- 설정 섹션: "Premium으로 업그레이드" (무료) / "QUDO Premium · 구독 중" (프리미엄)
+
+### 신규 파일
+- `app/upgrade/_layout.tsx`
+- `app/upgrade/index.tsx`
+- `hooks/use-premium.ts`
+
+### 변경된 파일
+- `stores/user-store.ts` — plan 관련 코드 추가
+- `app/_layout.tsx` — upgrade 라우트 등록
+- `app/(tabs)/index.tsx` — FAB 게이트
+- `app/workspace/[id]/share.tsx` — Web Drop 게이트
+- `app/workspace/[id]/index.tsx` — AI 분류 게이트
+- `app/mypage.tsx` — 실제 plan 상태 반영
+
+---
+
+## [Phase 15] 바텀시트 키보드 가림 버그 수정 (2026-04-16)
+
+### 배경
+Modal 내부 바텀시트에서 TextInput 포커스 시 키보드가 입력창을 가리는 문제 수정.
+
+### 원인
+`KeyboardAvoidingView`가 배경 `Pressable`과 형제(sibling) 노드로 구성되어 있거나 `position: 'absolute'`로 배치되어 키보드 높이를 감지하지 못함.
+
+### 수정 패턴
+
+```tsx
+// ❌ 기존: KAV와 Pressable이 형제 → 키보드 감지 안 됨
+<Modal>
+  <Pressable style={absoluteFill} onPress={close} />
+  <KeyboardAvoidingView style={{ position: 'absolute', bottom: 0 }}>
+    <Sheet />
+  </KeyboardAvoidingView>
+</Modal>
+
+// ✅ 수정: KAV가 전체 감싸고 Pressable은 flex child
+<Modal>
+  <KeyboardAvoidingView behavior="padding" style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '...' }}>
+    <Pressable style={{ flex: 1 }} onPress={close} />
+    <Sheet />
+  </KeyboardAvoidingView>
+</Modal>
+```
+
+- `behavior="padding"` — iOS/Android 모두 동일 적용 (Android `height`는 Modal 내부 불안정)
+
+### 수정된 파일
+- `app/workspace/[id]/index.tsx` — 샷 추가 모달
+- `app/mypage.tsx` — 채널 편집 모달

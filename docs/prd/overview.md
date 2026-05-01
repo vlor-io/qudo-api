@@ -1,6 +1,6 @@
 # QUDO (큐도) 서비스 개요
 
-> **문서 버전**: v2.4 | **최종 수정일**: 2026-04-07
+> **문서 버전**: v2.5 | **최종 수정일**: 2026-04-16
 > **서비스명**: QUDO (큐도)
 > **한줄 슬로건**: 가이드 촬영부터 PC 전송까지, 크리에이터를 위한 똑똑한 촬영 비서
 
@@ -60,7 +60,19 @@
 - **활동 통계**: 총 워크스페이스·촬영 컷·뱃지 수
 - **뱃지 모음**: 10종 (첫 촬영, 완벽 완료, 카테고리 마스터 등)
 - **채널 정보 등록**: Instagram / YouTube / TikTok / 블로그
-- **플랜 관리**: Free / Pro
+- **플랜 관리**: Free / Premium 구독 전환 (`app/upgrade/`)
+
+### 2.6 프리미엄 시스템
+
+- **업그레이드 화면**: 플랜 비교표 10행, 월간(₩9,900)/연간(₩79,900, 33% 할인)
+- **Free 플랜 제한**: 워크스페이스 3개, Web Drop 불가, AI 자동 분류 불가
+- **Premium 게이트**: 각 기능 진입점에서 `usePremium()` 훅으로 체크
+
+### 2.7 UX 시스템
+
+- **Toast**: 전역 경량 피드백 (`toast.show()`)
+- **커스텀 Dialog**: 시스템 Alert 완전 대체 (`dialog.confirm()` / `dialog.alert()`)
+- **튜토리얼**: 5단계 온보딩 — 첫 실행 자동 + 수동 진입
 
 ---
 
@@ -96,7 +108,7 @@
 |--------|------|
 | AI Engine | Gemini 2.5 Flash — `services/gemini.ts` (연동 완료) |
 | 사진 처리 큐 | `services/photo-queue.ts` (직렬 + Rate Limit 재시도) |
-| 스토리지 | AWS S3 (연동 예정) |
+| 스토리지 | Cloudflare R2 예정 (현재 Mock — 이그레스 무료, S3 호환 API) |
 | 백엔드 | 미정 (TBD) |
 | 웹 호스팅 | Vercel / Expo Web |
 
@@ -125,13 +137,14 @@
 | TDO-01 | 투두리스트 상세 | `workspace/[id]/` | ✅ |
 | CAM-01 | 스마트 가이드 카메라 | `workspace/[id]/camera` | ✅ |
 | CAM-02 | 시그니처 샷 관리 | `workspace/[id]/signature` | ✅ (오버레이 연동 예정) |
-| SHR-01 | Web Drop 링크 발급 | `workspace/[id]/share` | ✅ (S3 미연동) |
+| SHR-01 | Web Drop 링크 발급 | `workspace/[id]/share` | ✅ (R2 미연동) |
 | MYP-01 | 마이페이지 & 채널 등록 | `mypage` | ✅ |
 | PRF-EDIT-01 | 프로필 편집 | `profile-edit/` | ✅ |
 | CPG-01 | 캠페인 찾기 (목록·검색) | `(tabs)/campaign` | ✅ |
 | CPG-02 | 캠페인 상세 & 신청 | `campaign/[id]` | ✅ |
 | MY-APP-01 | 내 신청 현황 | `my-applications/` | ✅ |
-| SHR-03 | PC 워크스페이스 뷰어 | `drop/[token]` (웹 전용) | ✅ (API 미연동) |
+| SHR-03 | PC 워크스페이스 뷰어 | `drop/[token]` (웹 전용) | ✅ (R2/API 미연동) |
+| PRE-01 | 프리미엄 업그레이드 | `upgrade/` | ✅ (IAP 미연동) |
 | CPG-ADV-01 | 광고주 캠페인 관리 | `(tabs)/campaign` (광고주 역할) | ✅ |
 | CPG-ADV-02 | 캠페인 등록 | `advertiser/create-campaign` | ✅ |
 | CPG-ADV-03 | 신청자 목록 & 당선자 선정 | `advertiser/applicants/[id]` | ✅ |

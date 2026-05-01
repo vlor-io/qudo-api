@@ -18,9 +18,8 @@
 8. [신청자 관리 (광고주)](#8-신청자-관리-광고주)
 9. [Web Drop (파일 공유)](#9-web-drop-파일-공유)
 10. [파일 업로드 (S3)](#10-파일-업로드-s3)
-11. [AI 파이프라인](#11-ai-파이프라인)
-12. [에러 코드](#12-에러-코드)
-13. [데이터 모델 정의](#13-데이터-모델-정의)
+11. [에러 코드](#11-에러-코드)
+12. [데이터 모델 정의](#12-데이터-모델-정의)
 
 ---
 
@@ -93,8 +92,8 @@ POST /auth/social
 **Request**
 ```json
 {
-  "provider": "kakao",          // 지원: "kakao" | "naver" | "google" | "apple"
-  "token": "social_oauth_token" // Kakao/Naver: AccessToken, Google/Apple: ID Token
+  "provider": "kakao",          // "kakao" | "naver" | "google" | "apple"
+  "accessToken": "social_oauth_token_from_sdk"
 }
 ```
 
@@ -183,7 +182,6 @@ Authorization: Bearer {access_token}
     "role": "creator",
     "totalWorkspaces": 12,
     "totalShots": 248,
-    "totalBadges": 3,
     "socialAccounts": [
       {
         "platform": "instagram",
@@ -233,26 +231,7 @@ Authorization: Bearer {access_token}
 
 ---
 
-### 3-3. 회원 탈퇴
-
-```http
-DELETE /users/me
-Authorization: Bearer {access_token}
-```
-
-> **주의**: 즉시 하드 삭제되지 않으며 소프트 삭제(deletedAt) 처리됨. 30일 이내 복구 가능 정책.
-
-**Response 200**
-```json
-{
-  "success": true,
-  "data": null
-}
-```
-
----
-
-### 3-4. 아바타 이미지 업로드
+### 3-3. 아바타 이미지 업로드
 
 ```http
 POST /users/me/avatar
@@ -342,39 +321,6 @@ Authorization: Bearer {access_token}
 {
   "success": true,
   "data": { "role": "advertiser" }
-}
-```
-
----
-
-### 3-7. 내 획득 배지 조회
-
-```http
-GET /users/me/badges
-Authorization: Bearer {access_token}
-```
-
-**Response 200**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "badgeType": "first_shot",
-      "earnedAt": "2026-04-02T10:00:00Z"
-    },
-    {
-      "badgeType": "perfect_workspace",
-      "earnedAt": "2026-04-05T14:20:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "pageSize": 20,
-    "totalCount": 2,
-    "totalPages": 1,
-    "hasNext": false
-  }
 }
 ```
 
@@ -523,79 +469,6 @@ Authorization: Bearer {access_token}
 
 ```http
 DELETE /workspaces/{workspaceId}
-Authorization: Bearer {access_token}
-```
-
-**Response 200**
-```json
-{ "success": true, "data": null }
-```
-
----
-
-### 4-6. 시그니처 샷 조회
-
-```http
-GET /workspaces/{workspaceId}/signature-shots
-Authorization: Bearer {access_token}
-```
-
-**Response 200**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "sig_001",
-      "workspaceId": "ws_001",
-      "imageUri": "https://cdn.qudo.app/signatures/sig_001.png",
-      "opacity": 40,
-      "label": "항공샷_기본",
-      "createdAt": "2026-04-03"
-    }
-  ]
-}
-```
-
----
-
-### 4-7. 시그니처 샷 저장
-
-```http
-POST /workspaces/{workspaceId}/signature-shots
-Authorization: Bearer {access_token}
-```
-
-**Request**
-```json
-{
-  "imageUri": "https://cdn.qudo.app/signatures/sig_001.png",
-  "opacity": 40,
-  "label": "항공샷_기본"
-}
-```
-
-**Response 201**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "sig_001",
-    "workspaceId": "ws_001",
-    "imageUri": "https://cdn.qudo.app/signatures/sig_001.png",
-    "opacity": 40,
-    "label": "항공샷_기본",
-    "createdAt": "2026-04-03"
-  }
-}
-```
-
----
-
-### 4-8. 시그니처 샷 삭제
-
-```http
-DELETE /workspaces/{workspaceId}/signature-shots/{signatureShotId}
 Authorization: Bearer {access_token}
 ```
 
@@ -922,51 +795,6 @@ Authorization: Bearer {access_token}   # role=advertiser 필요
 ```
 
 **Response 200** — 6-1과 동일 구조
-
----
-
-### 6-5. 캠페인 수정
-
-```http
-PATCH /campaigns/{campaignId}
-Authorization: Bearer {access_token}   # role=advertiser + 본인 캠페인만
-```
-
-**Request** (변경할 필드만)
-```json
-{
-  "slots": 5,
-  "deadline": "2026-04-20"
-}
-```
-
-**Response 200**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "c_001",
-    "slots": 5,
-    "deadline": "2026-04-20"
-  }
-}
-```
-
----
-
-### 6-6. 캠페인 삭제
-
-```http
-DELETE /campaigns/{campaignId}
-Authorization: Bearer {access_token}   # role=advertiser + 본인 캠페인만
-```
-
-> **규칙**: 신청자가 없는 상태에서만 삭제 가능.
-
-**Response 200**
-```json
-{ "success": true, "data": null }
-```
 
 ---
 
@@ -1372,71 +1200,7 @@ Authorization: Bearer {access_token}
 
 ---
 
-## 11. AI 파이프라인
-
-### 11-1. Shot 자동 분류 (Shot Verification)
-
-```http
-POST /ai/match-todo
-Authorization: Bearer {access_token}
-```
-
-**Request**
-```json
-{
-  "base64": "iVBORw0KGgoAAAANSUhEUgAAA...",
-  "todos": [
-    { "id": "todo_001", "label": "메뉴 전체컷", "status": "PENDING", "imageCount": 0 },
-    { "id": "todo_002", "label": "시그니처 음료 줌인", "status": "COMPLETED", "imageCount": 1 }
-  ]
-}
-```
-
-**Response 200**
-```json
-{
-  "success": true,
-  "data": {
-    "matchedTodoId": "todo_001",
-    "matchedTodoLabel": "메뉴 전체컷",
-    "confidence": 0.92,
-    "feedback": null
-  }
-}
-```
-
----
-
-### 11-2. 캠페인 요구사항 파싱
-
-```http
-POST /ai/parse-campaign
-Authorization: Bearer {access_token}
-```
-
-**Request**
-```json
-{
-  "text": "블로그 포스팅용 뷰티 제품 리뷰입니다. 제형 컷 필수, 비포애프터 컷 필수. 하단에 스폰서십 명시 필수."
-}
-```
-
-**Response 200**
-```json
-{
-  "success": true,
-  "data": {
-    "tasks": ["제품 외관 컷", "제형 텍스처 컷", "사용 전/후 비교 필드 컷"],
-    "deadlines": [],
-    "legalNotices": ["소정의 원고료를 지원받은 사실을 포스팅 하단에 명시"],
-    "categoryHint": "BEAUTY"
-  }
-}
-```
-
----
-
-## 12. 에러 코드
+## 11. 에러 코드
 
 | 코드 | HTTP | 설명 |
 |------|------|------|
@@ -1457,7 +1221,7 @@ Authorization: Bearer {access_token}
 
 ---
 
-## 13. 데이터 모델 정의
+## 12. 데이터 모델 정의
 
 ### Workspace
 
@@ -1471,7 +1235,6 @@ interface Workspace {
   progress: number;     // 0-100, 완료된 투두 / 전체 투두 비율
   createdAt: string;    // ISO date
   campaignId?: string;  // 캠페인 연동 워크스페이스
-  campaignGuide?: string; // 캠페인 안내문 (원본 텍스트)
   thumbnailUri?: string;
 }
 ```
@@ -1563,22 +1326,7 @@ interface UserProfile {
   role: 'creator' | 'advertiser';
   totalWorkspaces: number;
   totalShots: number;
-  totalBadges: number;
   socialAccounts: SocialAccount[];
-}
-
-interface Badge {
-  badgeType: string;
-  earnedAt: string;
-}
-
-interface SignatureShot {
-  id: string;
-  workspaceId: string;
-  imageUri: string;
-  opacity: number;
-  label: string;
-  createdAt: string;
 }
 
 interface SocialAccount {
