@@ -12,7 +12,9 @@ import { BadgesService } from '@/badges/badges.service';
 import { BadgeType } from '@/badges/entities/user-badge.entity';
 import { UploadsService } from '@/uploads/uploads.service';
 import sharp from 'sharp';
-import { Stream } from 'stream';
+import { PassThrough, Stream } from 'stream';
+import archiver from 'archiver';
+import { In } from 'typeorm';
 
 
 @Injectable()
@@ -140,6 +142,60 @@ export class ShotsService {
     }
 
     return transformer.toBuffer();
+  }
+
+  /**
+   * 여러 shot 을 ZIP 으로 묶어 스트림으로 반환.
+   * userId 본인 소유 shot 만 포함시켜 권한 누락 방지.
+   * 호출처에서 res 에 archive.pipe(res) 로 스트리밍 응답.
+   */
+  async createBatchZipStream(userId: string, shotIds: string[]): Promise<{ archive: archiver.Archiver; fileName: string }> {
+    if (!shotIds || shotIds.length === 0) {
+      throw new BadRequestException('다운로드할 사진 ID 가 1개 이상 필요합니다.');
+    }
+    if (shotIds.length > 100) {
+      throw new BadRequestException('한 번에 다운로드 가능한 사진은 100개까지입니다.');
+    }
+
+    const shots = await this.shotRepository.find({
+      where: { id: In(shotIds), userId },
+    });
+
+    if (shots.length === 0) {
+      throw new NotFoundException('다운로드할 수 있는 사진을 찾을 수 없습니다.');
+    }
+
+    const publicDomain = this.configService.get<string>('S3_PUBLIC_DOMAIN');
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (err) => {
+      console.error('[ShotsService] Archive error:', err);
+    });
+
+    // 비동기로 각 파일을 archive 에 append. wait 없이 즉시 archive 객체 반환해 컨트롤러가 res.pipe 가능.
+    (async () => {
+      const usedNames = new Set<string>();
+      for (const shot of shots) {
+        try {
+          const objectKey = shot.imageUri.replace(`${publicDomain}/`, '');
+          const buffer = await this.uploadsService.getFileBuffer(objectKey);
+          let fileName = objectKey.split('/').pop() || `${shot.id}.jpg`;
+          // 중복 파일명 방지
+          if (usedNames.has(fileName)) {
+            const ext = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
+            const base = fileName.substring(0, fileName.length - ext.length);
+            fileName = `${base}_${shot.id.substring(0, 6)}${ext}`;
+          }
+          usedNames.add(fileName);
+          archive.append(buffer, { name: fileName });
+        } catch (err) {
+          console.error(`[ShotsService] Failed to append shot ${shot.id}:`, err);
+        }
+      }
+      archive.finalize();
+    })();
+
+    const fileName = `qudo_shots_${new Date().toISOString().slice(0, 10)}_${shots.length}files.zip`;
+    return { archive, fileName };
   }
 
   /**

@@ -193,6 +193,47 @@ export class UsersService {
     });
   }
 
+  /**
+   * 특정 platform 의 채널 연결 해제. 없으면 NotFound.
+   */
+  async deleteChannel(userId: string, platform: string): Promise<void> {
+    const channel = await this.channelRepository.findOne({
+      where: { userId, platform: platform as any },
+    });
+    if (!channel) {
+      throw new NotFoundException(`${platform} 채널 연결을 찾을 수 없습니다.`);
+    }
+    await this.channelRepository.delete(channel.id);
+  }
+
+  /**
+   * 사용자 활동 통계. User 의 denormalized 컬럼이 stale 할 수 있어
+   * shots/badges 는 실제 카운트, workspaces 는 user.totalWorkspaces 우선 + 실제 비교.
+   */
+  async getStats(userId: string): Promise<{
+    totalWorkspaces: number;
+    totalShots: number;
+    totalBadges: number;
+    connectedChannels: number;
+    connectedProviders: number;
+  }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+
+    const [channelCount, providerCount] = await Promise.all([
+      this.channelRepository.count({ where: { userId } }),
+      this.oauthRepository.count({ where: { userId } }),
+    ]);
+
+    return {
+      totalWorkspaces: user.totalWorkspaces ?? 0,
+      totalShots: user.totalShots ?? 0,
+      totalBadges: user.totalBadges ?? 0,
+      connectedChannels: channelCount,
+      connectedProviders: providerCount,
+    };
+  }
+
   async upsertChannel(userId: string, dto: UpsertChannelDto): Promise<Channel> {
     const existing = await this.channelRepository.findOne({
       where: { userId, platform: dto.platform },

@@ -105,6 +105,46 @@ export class UploadsService {
   }
 
   /**
+   * 사용자 단위 임의 prefix presign (현재는 avatar 전용).
+   * shot 용 getPresignedUrl 과 달리 workspaceId 검증이 없고 user 의 자기 영역에만 업로드.
+   * objectKey 형식: {userId}/avatar/{timestamp}_{random}_{safeFileName}
+   */
+  async getAvatarPresignedUrl(params: { userId: string; fileName: string; contentType: string }) {
+    try {
+      const { userId, fileName, contentType } = params;
+      const safeFileName = fileName.replace(/\s+/g, '_');
+      const ts = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 8);
+      const objectKey = `${userId}/avatar/${ts}_${randomStr}_${safeFileName}`;
+
+      const command = new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: objectKey,
+        ContentType: contentType,
+      });
+      const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 3600 });
+
+      const publicDomain = this.configService.get<string>('S3_PUBLIC_DOMAIN');
+      let baseUri = publicDomain;
+      if (!baseUri) {
+        const rawEndpoint = this.configService.get<string>('S3_ENDPOINT');
+        baseUri = rawEndpoint.endsWith(`/${this.bucketName}`)
+          ? rawEndpoint
+          : `${rawEndpoint}/${this.bucketName}`;
+      }
+
+      return {
+        uploadUrl,
+        fileUri: `${baseUri}/${objectKey}`,
+        objectKey,
+      };
+    } catch (error) {
+      console.error('Avatar Presigned URL 에러:', error);
+      throw new InternalServerErrorException('아바타 업로드 티켓 발급 중 에러가 발생했습니다.');
+    }
+  }
+
+  /**
    * S3(R2)에서 파일 데이터를 Buffer로 직접 가져옵니다.
    */
   async getFileBuffer(objectKey: string): Promise<Buffer> {

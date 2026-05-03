@@ -95,9 +95,26 @@ export class ApplicationsController {
 
   @ApiOperation({
     summary: '신청자 선정 (광고주 전용)',
-    description: '특정 신청자를 캠페인 참가자로 선정합니다. 선정 시 해당 사용자의 워크스페이스가 자동 생성됩니다.',
+    description: '특정 신청자를 캠페인 참가자로 선정합니다. 선정 시 신청자 본인 명의의 워크스페이스가 자동 생성되고, 캠페인 todoPreset 이 투두로 적용됩니다. 응답의 `createdWorkspaceId` 로 모바일이 자동 생성된 워크스페이스에 진입할 수 있습니다.',
   })
-  @ApiResponse({ status: 200, description: '선정 성공', type: Application })
+  @ApiResponse({
+    status: 200,
+    description: '선정 성공',
+    content: {
+      'application/json': {
+        example: {
+          success: true,
+          data: {
+            application: {
+              id: 'uuid', userId: 'uuid', campaignId: 'uuid', status: 'SELECTED',
+              workspaceId: 'created-workspace-uuid',
+            },
+            createdWorkspaceId: 'created-workspace-uuid',
+          },
+        },
+      },
+    },
+  })
   @ApiForbiddenError({
     path: '/v1/applications/{id}/select',
     description: '본인 캠페인이 아님',
@@ -117,10 +134,13 @@ export class ApplicationsController {
   @Patch(':id/select')
   @HttpCode(200)
   async select(@Request() req: any, @Param('id') id: string) {
-    const data = await this.applicationsService.selectApplicant(req.user.id, id);
+    const application = await this.applicationsService.selectApplicant(req.user.id, id);
     return {
       success: true,
-      data,
+      data: {
+        application,
+        createdWorkspaceId: application.workspaceId,
+      },
     };
   }
 

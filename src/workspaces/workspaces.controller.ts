@@ -8,6 +8,8 @@ import { Public } from '@/auth/decorators/public.decorator';
 import { TodosService } from '@/todos/todos.service';
 import { CreateTodoDto } from '@/todos/dto/create-todo.dto';
 import { CreateShareLinkDto } from './dto/create-share-link.dto';
+import { VerifyShareLinkDto } from './dto/verify-share-link.dto';
+import { ParseCampaignGuideDto } from './dto/parse-campaign-guide.dto';
 import { Todo } from '@/todos/entities/todo.entity';
 import { ShareLink } from './entities/share-link.entity';
 import { SignatureShot } from './entities/signature-shot.entity';
@@ -217,10 +219,10 @@ export class WorkspacesController {
   }
 
   @ApiOperation({
-    summary: '공유 링크로 워크스페이스 조회 (공개)',
-    description: '공유 토큰으로 워크스페이스 정보를 조회합니다. 비로그인 접근 가능.',
+    summary: '공유 링크 메타 조회 (공개)',
+    description: '공유 토큰의 메타 정보를 조회합니다. 비밀번호로 보호된 링크면 `passwordProtected:true`, `authenticated:false`, `workspace` 미포함으로 응답하고, 클라이언트는 비밀번호 입력 후 `/share/:token/verify` 를 호출해야 합니다. 보호되지 않은 링크면 즉시 워크스페이스 풀 데이터가 응답됩니다.',
   })
-  @ApiResponse({ status: 200, description: '조회 성공', type: ShareLink })
+  @ApiResponse({ status: 200, description: '조회 성공' })
   @ApiNotFoundError({
     path: '/v1/workspaces/share/{token}',
     description: '링크가 존재하지 않거나 만료됨',
@@ -231,7 +233,7 @@ export class WorkspacesController {
       },
       '링크 만료': {
         code: 'NOT_FOUND',
-        message: '공유 링크가 만료되었습니다.',
+        message: '만료된 공유 링크입니다.',
       },
     },
   })
@@ -239,7 +241,93 @@ export class WorkspacesController {
   @Public()
   @Get('share/:token')
   async getShareLink(@Param('token') token: string) {
-    const data = await this.workspacesService.getShareLink(token);
+    const data = await this.workspacesService.getShareLinkInfo(token);
+    return { success: true, data };
+  }
+
+  @ApiOperation({
+    summary: '공유 링크 비밀번호 검증 (공개)',
+    description: '비밀번호로 보호된 공유 링크의 비밀번호를 검증합니다. 성공 시 `authenticated:true` + `workspace` 풀 데이터를 반환합니다.',
+  })
+  @ApiResponse({ status: 200, description: '검증 성공' })
+  @ApiBadRequestError({
+    path: '/v1/workspaces/share/{token}/verify',
+    description: 'password 필드 누락',
+    validationDetails: ['password should not be empty'],
+  })
+  @ApiResponse({
+    status: 401,
+    description: '비밀번호 불일치',
+    content: {
+      'application/json': {
+        example: {
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: '비밀번호가 일치하지 않습니다.', details: null },
+          timestamp: '2026-04-19T02:00:00.000Z',
+          path: '/v1/workspaces/share/{token}/verify',
+        },
+      },
+    },
+  })
+  @ApiNotFoundError({
+    path: '/v1/workspaces/share/{token}/verify',
+    description: '링크가 존재하지 않거나 만료됨',
+    message: '유효하지 않은 공유 링크입니다.',
+  })
+  @ApiPublicStandardErrors('/v1/workspaces/share/{token}/verify')
+  @Public()
+  @Post('share/:token/verify')
+  @HttpCode(200)
+  async verifyShareLink(@Param('token') token: string, @Body() dto: VerifyShareLinkDto) {
+    const data = await this.workspacesService.verifyShareLink(token, dto.password);
+    return { success: true, data };
+  }
+
+  @ApiOperation({
+    summary: '캠페인 가이드 텍스트 자동 분석',
+    description: '광고주가 전달한 캠페인 가이드 원문을 Gemini 로 분석해 촬영 투두·마감일·법적 고지를 추출합니다. `applyTodos:true` (기본) 면 추출된 투두를 워크스페이스에 즉시 추가하고 `appliedTodoIds` 에 반환합니다.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '분석 성공',
+    content: {
+      'application/json': {
+        example: {
+          success: true,
+          data: {
+            todos: [
+              { label: '매장 외관 정면', required: true },
+              { label: '메뉴판 전체 컷', required: true },
+            ],
+            deadline: '2026-06-01',
+            legalNotices: ['#광고 표기 필수'],
+            summary: '맛집 체험단 — 외관·메뉴판·메인 메뉴 클로즈업 필수',
+            appliedTodoIds: ['uuid-1', 'uuid-2'],
+          },
+        },
+      },
+    },
+  })
+  @ApiBadRequestError({
+    path: '/v1/workspaces/{id}/parse-campaign',
+    description: '입력값 오류',
+    validationDetails: ['text should not be empty'],
+  })
+  @ApiNotFoundError({
+    path: '/v1/workspaces/{id}/parse-campaign',
+    description: '워크스페이스가 존재하지 않음',
+    message: WS_NOT_FOUND_MSG,
+  })
+  @ApiStandardErrors('/v1/workspaces/{id}/parse-campaign')
+  @Post(':id/parse-campaign')
+  @HttpCode(200)
+  async parseCampaignGuide(@Request() req: any, @Param('id') workspaceId: string, @Body() dto: ParseCampaignGuideDto) {
+    const data = await this.workspacesService.parseCampaignGuide(
+      req.user.id,
+      workspaceId,
+      dto.text,
+      dto.applyTodos !== false,
+    );
     return { success: true, data };
   }
 

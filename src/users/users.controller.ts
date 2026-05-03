@@ -1,10 +1,12 @@
-import { Controller, Get, Patch, Delete, Post, Body, UseGuards, Request, HttpCode } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Patch, Delete, Post, Body, UseGuards, Request, HttpCode, Param, ParseEnumPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { UploadsService } from '@/uploads/uploads.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpsertChannelDto } from './dto/upsert-channel.dto';
-import { Channel } from './entities/channel.entity';
+import { PresignAvatarDto } from './dto/presign-avatar.dto';
+import { Channel, SocialPlatform } from './entities/channel.entity';
 import {
   ApiStandardErrors,
   ApiBadRequestError,
@@ -16,7 +18,10 @@ import {
 @UseGuards(JwtAuthGuard)
 @Controller('v1/users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   @ApiOperation({
     summary: '내 프로필 조회',
@@ -98,6 +103,69 @@ export class UsersController {
   }
 
   @ApiOperation({
+    summary: '내 활동 통계',
+    description: '워크스페이스/촬영물/배지/채널/연결 provider 수를 한 번에 조회. 마이페이지 활동 섹션용.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '조회 성공',
+    content: {
+      'application/json': {
+        example: {
+          success: true,
+          data: {
+            totalWorkspaces: 5, totalShots: 124, totalBadges: 3,
+            connectedChannels: 2, connectedProviders: 1,
+          },
+        },
+      },
+    },
+  })
+  @ApiStandardErrors('/v1/users/me/stats')
+  @Get('me/stats')
+  async getMyStats(@Request() req: any) {
+    const data = await this.usersService.getStats(req.user.id);
+    return { success: true, data };
+  }
+
+  @ApiOperation({
+    summary: '프로필 사진 업로드 티켓 발급',
+    description: 'avatar 전용 R2 presigned URL 을 발급합니다. 응답의 uploadUrl 로 PUT 한 뒤 fileUri 를 PATCH /v1/users/me 의 avatarUri 로 보내 저장하세요.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: '발급 성공',
+    content: {
+      'application/json': {
+        example: {
+          success: true,
+          data: {
+            uploadUrl: 'https://...presigned...',
+            fileUri: 'https://cdn.qudo.app/{userId}/avatar/...',
+            objectKey: '{userId}/avatar/...',
+          },
+        },
+      },
+    },
+  })
+  @ApiBadRequestError({
+    path: '/v1/users/me/avatar',
+    description: '입력값 오류',
+    validationDetails: ['fileName should not be empty', 'contentType should not be empty'],
+  })
+  @ApiStandardErrors('/v1/users/me/avatar')
+  @Post('me/avatar')
+  @HttpCode(200)
+  async presignAvatar(@Request() req: any, @Body() dto: PresignAvatarDto) {
+    const data = await this.uploadsService.getAvatarPresignedUrl({
+      userId: req.user.id,
+      fileName: dto.fileName,
+      contentType: dto.contentType,
+    });
+    return { success: true, data };
+  }
+
+  @ApiOperation({
     summary: '소셜 채널 연결/수정',
     description: '특정 플랫폼의 채널을 연결하거나 기존 정보를 업데이트합니다 (Upsert).',
   })
@@ -129,5 +197,27 @@ export class UsersController {
   async upsertChannel(@Request() req: any, @Body() dto: UpsertChannelDto) {
     const data = await this.usersService.upsertChannel(req.user.id, dto);
     return { success: true, data };
+  }
+
+  @ApiOperation({
+    summary: '소셜 채널 연결 해제',
+    description: '특정 플랫폼의 채널 연결을 해제합니다.',
+  })
+  @ApiParam({ name: 'platform', enum: SocialPlatform })
+  @ApiResponse({ status: 200, description: '해제 성공' })
+  @ApiNotFoundError({
+    path: '/v1/users/me/channels/{platform}',
+    description: '연결된 채널이 없음',
+    message: '해당 플랫폼 채널 연결을 찾을 수 없습니다.',
+  })
+  @ApiStandardErrors('/v1/users/me/channels/{platform}')
+  @Delete('me/channels/:platform')
+  @HttpCode(200)
+  async deleteChannel(
+    @Request() req: any,
+    @Param('platform', new ParseEnumPipe(SocialPlatform)) platform: SocialPlatform,
+  ) {
+    await this.usersService.deleteChannel(req.user.id, platform);
+    return { success: true, data: null };
   }
 }

@@ -57,6 +57,39 @@ export class ShotsController {
   }
 
   @ApiOperation({
+    summary: '여러 촬영물 ZIP 일괄 다운로드',
+    description: 'shot ID 들을 콤마로 구분해 전달하면 본인 소유의 사진들만 ZIP 파일로 묶어 스트림 응답합니다. 한 번에 최대 100개. Web Drop "전체 다운로드" 용도.',
+  })
+  @ApiQuery({ name: 'ids', required: true, description: '콤마 구분 shot ID 목록', example: 'uuid-1,uuid-2,uuid-3' })
+  @ApiResponse({ status: 200, description: 'application/zip 스트림 반환' })
+  @ApiBadRequestError({
+    path: '/v1/shots/batch',
+    description: '입력값 오류',
+    cases: {
+      'ids 누락': { code: 'BAD_REQUEST', message: '다운로드할 사진 ID 가 1개 이상 필요합니다.' },
+      '100개 초과': { code: 'BAD_REQUEST', message: '한 번에 다운로드 가능한 사진은 100개까지입니다.' },
+    },
+  })
+  @ApiNotFoundError({
+    path: '/v1/shots/batch',
+    description: '본인 소유 사진이 하나도 없음',
+    message: '다운로드할 수 있는 사진을 찾을 수 없습니다.',
+  })
+  @ApiStandardErrors('/v1/shots/batch')
+  @Get('batch')
+  async getBatch(
+    @Res() res: ExResponse,
+    @Request() req: any,
+    @Query('ids') ids: string,
+  ) {
+    const shotIds = (ids ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const { archive, fileName } = await this.shotsService.createBatchZipStream(req.user.id, shotIds);
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    archive.pipe(res);
+  }
+
+  @ApiOperation({
     summary: '워크스페이스 촬영물 목록 조회',
     description: '특정 워크스페이스에 속한 모든 촬영물을 반환합니다.',
   })
