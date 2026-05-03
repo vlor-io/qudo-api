@@ -2,11 +2,9 @@ import { Injectable, InternalServerErrorException, NotFoundException } from '@ne
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as crypto from 'crypto';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Workspace } from '@/workspaces/entities/workspace.entity';
-import { User } from '@/users/entities/user.entity';
 
 interface PresignDto {
   fileName: string;
@@ -25,8 +23,6 @@ export class UploadsService {
     private readonly configService: ConfigService,
     @InjectRepository(Workspace)
     private readonly workspaceRepository: Repository<Workspace>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
   ) {
     this.bucketName = this.configService.get<string>('S3_BUCKET');
     
@@ -57,38 +53,21 @@ export class UploadsService {
     try {
       const { fileName, contentType, todoId, workspaceId, userId } = params;
 
-      // 1. 워크스페이스 및 유저 정보 조회
+      // 1. 워크스페이스 조회 (소유자 검증 포함)
       const workspace = await this.workspaceRepository.findOne({
         where: { id: workspaceId, userId },
-        relations: ['user'],
       });
 
       if (!workspace) {
         throw new NotFoundException('해당 워크스페이스를 찾을 수 없습니다.');
       }
 
-      let user = workspace.user;
-      
-      // 2. 워크스페이스 키 확인 및 생성 (기존 유저 대응)
-      if (!user.workspaceKey) {
-        const timestamp = new Date().toISOString()
-          .replace(/[-T:.Z]/g, '')
-          .slice(2, 17);
-        const random = crypto.randomBytes(4).toString('hex');
-        user.workspaceKey = `${timestamp}_${random}`;
-        
-        await this.userRepository.update(user.id, { workspaceKey: user.workspaceKey });
-      }
-
-      // 3. 파일명 정규화 (공백 제거) 및 파일명 위계 구성
+      // 2. 파일명 정규화 + 폴더 구조: {userId}/{캠페인명}/shots/{파일명}
       const safeFileName = fileName.replace(/\s+/g, '_');
       const randomStr = Math.random().toString(36).substring(2, 8);
-      
-      // 사용자 요구사항 구조: {고유키}/{캠페인명}/shots/{파일명}
-      // 캠페인명이 특수문자를 포함할 수 있으므로 공백 등 정규화 필요
       const safeCampaignTitle = workspace.title.replace(/\s+/g, '_');
-      
-      const prefix = `${user.workspaceKey}/${safeCampaignTitle}/shots`;
+
+      const prefix = `${userId}/${safeCampaignTitle}/shots`;
       const objectKey = `${prefix}/${todoId || 'direct'}_${randomStr}_${safeFileName}`;
 
       const command = new PutObjectCommand({

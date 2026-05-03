@@ -1,16 +1,15 @@
-import { Controller, Post, Body, HttpCode, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, getSchemaPath } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseEnumPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags, getSchemaPath } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SocialLoginDto } from './dto/social-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { OAuthProvider } from '@/users/entities/oauth-identity.entity';
 import {
-  ApiStandardErrors,
   ApiBadRequestError,
   ApiConflictError,
   ApiInternalError,
+  ApiStandardErrors,
 } from '@/common/decorators/api-standard-errors.decorator';
 import { ErrorResponseDto } from '@/common/dto/error-response.dto';
 
@@ -22,108 +21,26 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiOperation({
-    summary: '이메일 회원가입',
-    description: '이메일과 비밀번호로 신규 계정을 생성합니다.',
-  })
-  @ApiResponse({ status: 201, description: '회원가입 성공' })
-  @ApiBadRequestError({
-    path: '/v1/auth/register',
-    description: '입력값 형식 오류',
-    cases: {
-      '이메일 형식 오류': {
-        code: 'BAD_REQUEST',
-        message: 'Validation Failed',
-        details: ['email must be an email'],
-      },
-      '비밀번호 길이 부족': {
-        code: 'BAD_REQUEST',
-        message: 'Validation Failed',
-        details: ['password must be longer than or equal to 8 characters'],
-      },
-      '필수값 누락': {
-        code: 'BAD_REQUEST',
-        message: 'Validation Failed',
-        details: ['displayName should not be empty'],
-      },
-    },
-  })
-  @ApiConflictError({
-    path: '/v1/auth/register',
-    description: '이미 가입된 이메일',
-    message: '이미 사용 중인 이메일 주소입니다.',
-  })
-  @ApiInternalError({ path: '/v1/auth/register' })
-  @Post('register')
-  async register(@Body() dto: RegisterDto) {
-    const data = await this.authService.register(dto);
-    return { success: true, data };
-  }
-
-  @ApiOperation({
-    summary: '이메일 로그인',
-    description: '이메일과 비밀번호로 로그인하여 Access/Refresh 토큰을 발급받습니다.',
-  })
-  @ApiResponse({ status: 200, description: '로그인 성공' })
-  @ApiBadRequestError({
-    path: '/v1/auth/login',
-    description: '입력값 누락',
-    cases: {
-      '이메일 누락': {
-        code: 'BAD_REQUEST',
-        message: 'Validation Failed',
-        details: ['email should not be empty'],
-      },
-      '비밀번호 누락': {
-        code: 'BAD_REQUEST',
-        message: 'Validation Failed',
-        details: ['password should not be empty'],
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: '이메일 또는 비밀번호 불일치',
-    content: {
-      'application/json': {
-        schema: ERROR_SCHEMA_REF,
-        example: {
-          success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: '이메일 또는 비밀번호가 일치하지 않습니다.',
-            details: null,
-          },
-          timestamp: '2026-04-19T02:00:00.000Z',
-          path: '/v1/auth/login',
-        },
-      },
-    },
-  })
-  @ApiInternalError({ path: '/v1/auth/login' })
-  @Post('login')
-  @HttpCode(200)
-  async login(@Body() dto: LoginDto) {
-    const data = await this.authService.login(dto);
-    return { success: true, data };
-  }
-
-  @ApiOperation({
     summary: '소셜 로그인 / 회원가입',
-    description: '소셜 공급자(kakao, google 등)의 토큰으로 로그인 또는 자동 회원가입합니다.',
+    description: '모바일 SDK 가 발급한 access/id token 을 백엔드에서 provider 서버로 검증한 뒤 JWT 를 발급합니다. 신규 사용자는 자동 가입됩니다.',
   })
   @ApiResponse({ status: 200, description: '로그인 성공' })
   @ApiBadRequestError({
     path: '/v1/auth/social',
-    description: '지원하지 않는 소셜 공급자 또는 입력값 오류',
+    description: '입력값 오류 또는 토큰 종류 누락',
     cases: {
-      '지원하지 않는 공급자': {
-        code: 'BAD_REQUEST',
-        message: '지원하지 않는 소셜 로그인 공급자입니다.',
-      },
-      'DTO 검증 실패': {
+      'provider 누락': {
         code: 'BAD_REQUEST',
         message: 'Validation Failed',
-        details: ['provider should not be empty', 'accessToken should not be empty'],
+        details: ['provider must be one of the following values: kakao, naver, google, apple'],
+      },
+      'Apple idToken 누락': {
+        code: 'BAD_REQUEST',
+        message: 'Apple 로그인은 idToken 이 필요합니다.',
+      },
+      'Kakao accessToken 누락': {
+        code: 'BAD_REQUEST',
+        message: '카카오 로그인은 accessToken 이 필요합니다.',
       },
     },
   })
@@ -135,11 +52,22 @@ export class AuthController {
         schema: ERROR_SCHEMA_REF,
         example: {
           success: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: '소셜 인증 토큰이 유효하지 않습니다.',
-            details: null,
-          },
+          error: { code: 'UNAUTHORIZED', message: '카카오 토큰이 유효하지 않습니다.', details: null },
+          timestamp: '2026-04-19T02:00:00.000Z',
+          path: '/v1/auth/social',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'provider 인증 서버 호출 실패',
+    content: {
+      'application/json': {
+        schema: ERROR_SCHEMA_REF,
+        example: {
+          success: false,
+          error: { code: 'SERVER_ERROR', message: '카카오 인증 서버 호출에 실패했습니다.', details: null },
           timestamp: '2026-04-19T02:00:00.000Z',
           path: '/v1/auth/social',
         },
@@ -155,8 +83,70 @@ export class AuthController {
   }
 
   @ApiOperation({
+    summary: '소셜 계정 추가 연결',
+    description: '로그인된 사용자에게 다른 provider 계정을 연결합니다 (예: 카카오로 가입한 user 가 구글 추가 연결).',
+  })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: '연결 성공. 연결된 provider 목록 반환' })
+  @ApiConflictError({
+    path: '/v1/auth/social/link',
+    description: '이미 다른 user 에 연결된 소셜 계정',
+    message: '이미 다른 계정에 연결된 소셜 계정입니다.',
+  })
+  @ApiStandardErrors('/v1/auth/social/link')
+  @UseGuards(JwtAuthGuard)
+  @Post('social/link')
+  @HttpCode(200)
+  async socialLink(@Request() req: any, @Body() dto: SocialLoginDto) {
+    const data = await this.authService.socialLink(req.user.id, dto);
+    return { success: true, data };
+  }
+
+  @ApiOperation({
+    summary: '소셜 계정 연결 해제',
+    description: '특정 provider 의 연결을 해제합니다. 마지막 1개 provider 는 해제할 수 없습니다 (계정 잠김 방지).',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'provider', enum: OAuthProvider })
+  @ApiResponse({ status: 200, description: '해제 성공. 남은 provider 목록 반환' })
+  @ApiBadRequestError({
+    path: '/v1/auth/social/{provider}',
+    description: '마지막 provider 해제 시도',
+    cases: {
+      '마지막 연결 수단': {
+        code: 'BAD_REQUEST',
+        message: '마지막 연결 수단은 해제할 수 없습니다. 먼저 다른 소셜 계정을 연결하세요.',
+      },
+    },
+  })
+  @ApiStandardErrors('/v1/auth/social/{provider}')
+  @UseGuards(JwtAuthGuard)
+  @Delete('social/:provider')
+  async socialUnlink(
+    @Request() req: any,
+    @Param('provider', new ParseEnumPipe(OAuthProvider)) provider: OAuthProvider,
+  ) {
+    const data = await this.authService.socialUnlink(req.user.id, provider);
+    return { success: true, data };
+  }
+
+  @ApiOperation({
+    summary: '연결된 소셜 계정 목록',
+    description: '현재 사용자에게 연결된 OAuth provider 목록을 반환합니다.',
+  })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: '조회 성공' })
+  @ApiStandardErrors('/v1/auth/social/providers')
+  @UseGuards(JwtAuthGuard)
+  @Get('social/providers')
+  async listProviders(@Request() req: any) {
+    const data = await this.authService.listProviders(req.user.id);
+    return { success: true, data };
+  }
+
+  @ApiOperation({
     summary: 'Access Token 갱신',
-    description: 'Refresh Token으로 만료된 Access Token을 재발급합니다.',
+    description: 'Refresh Token 으로 만료된 Access Token 을 재발급합니다.',
   })
   @ApiResponse({ status: 200, description: '갱신 성공' })
   @ApiBadRequestError({
@@ -174,11 +164,7 @@ export class AuthController {
           '리프레시 토큰 만료': {
             value: {
               success: false,
-              error: {
-                code: 'TOKEN_EXPIRED',
-                message: '리프레시 토큰이 만료되었습니다. 다시 로그인해주세요.',
-                details: null,
-              },
+              error: { code: 'TOKEN_EXPIRED', message: '리프레시 토큰이 만료되었습니다. 다시 로그인해주세요.', details: null },
               timestamp: '2026-04-19T02:00:00.000Z',
               path: '/v1/auth/refresh',
             },
@@ -186,11 +172,7 @@ export class AuthController {
           '유효하지 않은 리프레시 토큰': {
             value: {
               success: false,
-              error: {
-                code: 'INVALID_TOKEN',
-                message: '유효하지 않은 리프레시 토큰입니다.',
-                details: null,
-              },
+              error: { code: 'INVALID_TOKEN', message: '유효하지 않은 리프레시 토큰입니다.', details: null },
               timestamp: '2026-04-19T02:00:00.000Z',
               path: '/v1/auth/refresh',
             },

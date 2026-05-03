@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, OneToMany } from 'typeorm';
 import { Channel } from './channel.entity';
+import { OAuthIdentity } from './oauth-identity.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum UserPlan {
@@ -22,8 +23,8 @@ export class User {
   @Column({ type: 'varchar', length: 100 })
   displayName: string;
 
-  @ApiProperty({ description: '이메일 주소', example: 'qudo@example.com', required: false })
-  @Column({ type: 'varchar', unique: true, nullable: true })
+  @ApiProperty({ description: 'OAuth provider 가 제공한 이메일 (표시용 스냅샷, 동일 이메일이 여러 user 에 존재 가능)', example: 'qudo@example.com', required: false })
+  @Column({ type: 'varchar', nullable: true })
   email: string;
 
   @ApiProperty({ description: '아바타 이미지 URL', example: 'https://cdn.qudo.app/avatars/u_1.jpg', required: false })
@@ -54,19 +55,6 @@ export class User {
   @Column({ type: 'varchar', length: 100, nullable: true })
   bio: string;
 
-  @ApiProperty({ description: '해싱된 비밀번호', required: false })
-  @Column({ type: 'varchar', nullable: true, select: false })
-  passwordHash: string;
-
-  @ApiProperty({ description: 'OAuth 공급자 식별 ID', example: 'kakao_123456789' })
-  @Column({ type: 'varchar', unique: true, nullable: true })
-  providerId: string;
-
-  @ApiProperty({ description: '전역 고유 워크스페이스 키', example: '240419123000_abcd' })
-  @Column({ type: 'varchar', unique: true, nullable: true })
-  workspaceKey: string;
-
-
   @ApiProperty({ description: '계정 생성일' })
   @CreateDateColumn()
   createdAt: Date;
@@ -81,4 +69,7 @@ export class User {
 
   @OneToMany(() => Channel, (channel) => channel.user)
   channels: Channel[];
+
+  @OneToMany(() => OAuthIdentity, (oi) => oi.user)
+  oauthIdentities: OAuthIdentity[];
 }
