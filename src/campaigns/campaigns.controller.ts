@@ -15,7 +15,7 @@ import {
 
 const CAMPAIGN_NOT_FOUND_MSG = '해당 캠페인을 찾을 수 없습니다.';
 
-@ApiTags('Campaigns (캠페인)')
+@ApiTags('Campaigns')
 @Controller('v1/campaigns')
 export class CampaignsController {
   constructor(private readonly campaignsService: CampaignsService) {}

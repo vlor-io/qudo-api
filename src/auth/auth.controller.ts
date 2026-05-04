@@ -15,7 +15,7 @@ import { ErrorResponseDto } from '@/common/dto/error-response.dto';
 
 const ERROR_SCHEMA_REF = { $ref: getSchemaPath(ErrorResponseDto) };
 
-@ApiTags('Auth (인증)')
+@ApiTags('Auth')
 @Controller('v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

@@ -5,7 +5,7 @@ import { Subscription } from './entities/subscription.entity';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { ApiStandardErrors } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Subscriptions (구독/요금제)')
+@ApiTags('Subscriptions')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/subscriptions')

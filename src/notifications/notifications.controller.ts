@@ -8,7 +8,7 @@ import {
   ApiNotFoundError,
 } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Notifications (알림)')
+@ApiTags('Notifications')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/notifications')

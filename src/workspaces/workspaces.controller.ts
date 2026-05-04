@@ -24,7 +24,7 @@ import {
 const WS_NOT_FOUND_MSG = '해당 워크스페이스를 찾을 수 없습니다.';
 const WS_FORBIDDEN_MSG = '해당 워크스페이스에 대한 접근 권한이 없습니다.';
 
-@ApiTags('Workspaces (워크스페이스)')
+@ApiTags('Workspaces')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/workspaces')

@@ -9,7 +9,7 @@ import {
   ApiNotFoundError,
 } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Uploads (업로드)')
+@ApiTags('Uploads')
 @ApiBearerAuth()
 @Controller('v1/uploads')
 export class UploadsController {

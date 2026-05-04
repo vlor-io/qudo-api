@@ -11,7 +11,7 @@ import {
 
 const TODO_NOT_FOUND_MSG = '해당 투두 항목을 찾을 수 없습니다.';
 
-@ApiTags('Todos (투두/촬영항목)')
+@ApiTags('Todos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/todos')

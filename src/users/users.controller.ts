@@ -14,7 +14,7 @@ import {
   ApiNotFoundError,
 } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Users (사용자)')
+@ApiTags('Users')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/users')

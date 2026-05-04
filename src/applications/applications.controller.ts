@@ -12,7 +12,7 @@ import {
   ApiConflictError,
 } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Applications (캠페인 신청)')
+@ApiTags('Applications')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/applications')

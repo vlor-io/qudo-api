@@ -5,7 +5,7 @@ import { UserBadge } from './entities/user-badge.entity';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { ApiStandardErrors } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Badges (배지)')
+@ApiTags('Badges')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/badges')

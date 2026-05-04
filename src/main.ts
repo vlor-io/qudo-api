@@ -32,6 +32,17 @@ async function bootstrap() {
       '\n\n[테스트 가이드]\n1. Auth > register API로 회원가입하거나 login/social API로 토큰을 발급받습니다.\n2. 상단 Authorize 버튼에 발급받은 accessToken을 입력합니다.\n3. 이후 권한이 필요한 API를 자유롭게 호출합니다.',
     )
     .setVersion('1.1')
+    .addTag('Auth', '인증')
+    .addTag('Users', '사용자')
+    .addTag('Workspaces', '워크스페이스')
+    .addTag('Campaigns', '캠페인')
+    .addTag('Applications', '캠페인 신청')
+    .addTag('Todos', '투두/촬영항목')
+    .addTag('Shots', '촬영물')
+    .addTag('Uploads', '업로드')
+    .addTag('Badges', '배지')
+    .addTag('Notifications', '알림')
+    .addTag('Subscriptions', '구독/요금제')
     .addBearerAuth(
       {
         type: 'http',

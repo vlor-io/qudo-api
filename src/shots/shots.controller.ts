@@ -13,7 +13,7 @@ import {
   ApiNotFoundError,
 } from '@/common/decorators/api-standard-errors.decorator';
 
-@ApiTags('Shots (촬영물)')
+@ApiTags('Shots')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('v1/shots')
