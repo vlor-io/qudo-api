@@ -119,6 +119,60 @@ POST /v1/auth/social  { provider, idToken? | accessToken?, displayNameHint? }
 - `GET /v1/auth/social/providers` — 연결된 provider 목록
 - `POST /v1/auth/refresh` / `POST /v1/auth/logout`
 
+## OAuth Provider 셋업 가이드
+
+**용어 매핑** — 환경변수명은 OAuth 2.0 표준 (`client_id`) 을 따르지만, **각 provider 콘솔에서는 자체 용어를 씀**:
+
+| Provider | 콘솔에서 가져올 값 | 콘솔 표기 | .env 변수명 |
+|---|---|---|---|
+| Kakao | OAuth client_id | **"REST API 키"** | `KAKAO_CLIENT_ID` |
+| Kakao | 운영자 권한 키 | **"Admin 키"** | `KAKAO_ADMIN_KEY` |
+| Google | OAuth client_id (앱별 다중) | "OAuth 2.0 Client ID" | `GOOGLE_CLIENT_IDS` (콤마) |
+| Naver | (백엔드 미사용 — 모바일 SDK 만 씀) | "Client ID / Secret" | (없음) |
+
+→ 카카오 콘솔에서 "REST API 키" 라고 적힌 값을 `KAKAO_CLIENT_ID` 에 넣으면 됩니다. 같은 값이고 명칭만 다릅니다.
+
+### Kakao
+
+1. **콘솔 사전 작업**:
+   - [Kakao Developers](https://developers.kakao.com) → 내 애플리케이션 → 카카오 로그인 → **OpenID Connect 활성화 ON**
+   - 동의항목: `nickname`, `profile_image`, `account_email` (선택)
+2. **키 가져오기**: 앱 키 페이지에서
+   - **REST API 키** → `.env` 의 `KAKAO_CLIENT_ID`
+   - **Admin 키** → `.env` 의 `KAKAO_ADMIN_KEY` (회원탈뼈 시 unlink 호출용. 미설정 시 unlink 만 skip)
+3. **모바일 SDK 호출 시**:
+   - `scopes:['openid','profile_nickname','profile_image','account_email']` 필수 (id_token 발급에 `openid` scope 필수)
+   - 받은 **id_token** 을 백엔드로 전달: `{provider:'kakao', idToken:'<id_token>'}`
+4. **백엔드 검증**: `https://kauth.kakao.com/.well-known/jwks.json` 에서 공개키 캐시, 로컬에서 서명·`aud`(=KAKAO_CLIENT_ID)·`iss`(=`https://kauth.kakao.com`) 검증. **외부 호출 0회.**
+
+### Google
+
+1. **콘솔 사전 작업**:
+   - [Google Cloud Console](https://console.cloud.google.com) → API 및 서비스 → OAuth 동의 화면 구성
+   - **각 플랫폼별로 별도 OAuth Client ID 생성**: iOS (번들 ID), Android (패키지명 + SHA-1), 웹 (Origin)
+2. **키 가져오기**: 각 client_id (`xxx.apps.googleusercontent.com`) 들을 콤마 구분해 한 줄로:
+   ```ini
+   GOOGLE_CLIENT_IDS=123-ios.apps.googleusercontent.com,456-android.apps.googleusercontent.com
+   ```
+3. **모바일 SDK 호출 시**: 받은 **id_token** 을 백엔드로 전달: `{provider:'google', idToken:'<id_token>'}`
+4. **백엔드 검증**: `https://www.googleapis.com/oauth2/v3/certs` 의 JWKS 로 서명·`aud`(=`GOOGLE_CLIENT_IDS` 화이트리스트)·`iss`(=`https://accounts.google.com`) 검증. **외부 호출 0회.**
+
+### Naver
+
+1. **콘솔 사전 작업**:
+   - [Naver Developers](https://developers.naver.com) → Application 등록
+   - 사용 API: 네이버 로그인. 이메일/이름 같은 민감 정보는 **검수 신청 필요**
+2. **키 가져오기**: `Client ID` / `Client Secret` 은 **모바일 SDK 빌드에서만 사용**. 백엔드 .env 에는 넣지 않음.
+3. **모바일 SDK 호출 시**: 받은 **access_token** 을 백엔드로 전달: `{provider:'naver', accessToken:'<access_token>'}`
+   - Naver 는 OIDC 표준 미지원 (id_token 발급 안 함). access_token 방식 유지.
+4. **백엔드 검증**: `https://openapi.naver.com/v1/nid/me` 를 `Bearer` 헤더로 호출해 사용자 정보 받음.
+
+### 회원탈뼈 시 provider 측 정리
+
+`DELETE /v1/users/me` 호출 시:
+- **Kakao**: `KAKAO_ADMIN_KEY` 가 설정되어 있으면 `kapi/v1/user/unlink` 호출로 카카오 측 연결 해제. 미설정이면 skip + 로그.
+- **Google / Naver**: access_token 을 영구 보관하지 않으므로 revoke 호출 자체가 불가 → skip + 로그. 사용자가 각 provider 설정에서 수동 해제 가능.
+
 ## 도메인 모듈
 
 | 모듈 | 역할 | 주요 path |
