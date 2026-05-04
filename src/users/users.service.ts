@@ -147,7 +147,6 @@ export class UsersService {
 
   /**
    * 재로그인 시 provider 가 새로 준 정보가 있고, 기존 OAuthIdentity 의 해당 필드가 비어있으면 보강 저장.
-   * Apple 의 경우 첫 로그인에만 email/name 이 오므로 중요.
    */
   async refreshIdentitySnapshotIfMissing(
     userId: string,
@@ -182,8 +181,15 @@ export class UsersService {
     return this.findById(id);
   }
 
-  async softDeleteUser(id: string): Promise<void> {
-    await this.userRepository.softDelete(id);
+  /**
+   * 사용자를 영구 삭제. DB ON DELETE CASCADE 가 모든 child (oauth_identities/workspaces/channels/notifications/shots/campaigns/applications/subscriptions/user_badges) 함께 삭제.
+   * provider 측 token revoke 는 호출 측 (AuthService) 책임.
+   */
+  async hardDeleteUser(id: string): Promise<void> {
+    const result = await this.userRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
   }
 
   async findChannels(userId: string): Promise<Channel[]> {

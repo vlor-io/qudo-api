@@ -1,0 +1,462 @@
+{
+  "info": {
+    "name": "Qudo API",
+    "description": "Qudo 백엔드 API 검증용 컬렉션. {{baseUrl}}, {{accessToken}}, {{refreshToken}}, {{workspaceId}}, {{shareToken}}, {{shareTokenWithPwd}}, {{applicationId}}, {{shotId1}} 등 변수를 환경에서 설정하세요.\n\nOAuth 로그인 후 받은 accessToken/refreshToken 을 환경변수에 넣으면 인증 필요한 모든 요청이 자동으로 동작합니다.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api.qudo.app", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "workspaceId", "value": "", "type": "string" },
+    { "key": "shareToken", "value": "", "type": "string" },
+    { "key": "shareTokenWithPwd", "value": "", "type": "string" },
+    { "key": "sharePassword", "value": "qudo1234", "type": "string" },
+    { "key": "applicationId", "value": "", "type": "string" },
+    { "key": "shotId1", "value": "", "type": "string" },
+    { "key": "shotId2", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth (인증)",
+      "item": [
+        {
+          "name": "POST /v1/auth/social — 소셜 로그인/가입 (Kakao 예시)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/auth/social",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"kakao\",\n  \"accessToken\": \"<카카오 SDK 가 발급한 access_token>\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /v1/auth/social — Apple (idToken 필수)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/auth/social",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"apple\",\n  \"idToken\": \"<Apple identity_token>\",\n  \"displayNameHint\": \"홍길동\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /v1/auth/social/link — provider 추가 연결 (JWT)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/auth/social/link",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"google\",\n  \"idToken\": \"<Google id_token>\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /v1/auth/social/providers — 연결된 provider 목록 (JWT)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/auth/social/providers" }
+        },
+        {
+          "name": "DELETE /v1/auth/social/:provider — 연결 해제 (JWT)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/auth/social/google" }
+        },
+        {
+          "name": "POST /v1/auth/refresh — Access Token 갱신",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/auth/refresh",
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "POST /v1/auth/logout — 로그아웃 (JWT)",
+          "request": { "method": "POST", "url": "{{baseUrl}}/v1/auth/logout" }
+        }
+      ]
+    },
+    {
+      "name": "Users (사용자)",
+      "item": [
+        {
+          "name": "GET /v1/users/me — 내 프로필",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/users/me" }
+        },
+        {
+          "name": "PATCH /v1/users/me — 프로필 수정",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/users/me",
+            "body": { "mode": "raw", "raw": "{\n  \"displayName\": \"김스냅\",\n  \"bio\": \"음식·뷰티 전문 크리에이터\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /v1/users/me — 회원 탈퇴 (소프트)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/users/me" }
+        },
+        {
+          "name": "🆕 GET /v1/users/me/stats — 활동 통계",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/users/me/stats" }
+        },
+        {
+          "name": "🆕 POST /v1/users/me/avatar — 프로필 사진 presign",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/users/me/avatar",
+            "body": { "mode": "raw", "raw": "{\n  \"fileName\": \"me.jpg\",\n  \"contentType\": \"image/jpeg\"\n}" }
+          },
+          "description": "응답의 uploadUrl 로 PUT 한 뒤 fileUri 를 PATCH /v1/users/me 의 avatarUri 로 보내 저장"
+        },
+        {
+          "name": "GET /v1/users/me/channels — 소셜 채널 목록",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/users/me/channels" }
+        },
+        {
+          "name": "POST /v1/users/me/channels — 채널 연결/수정",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/users/me/channels",
+            "body": { "mode": "raw", "raw": "{\n  \"platform\": \"instagram\",\n  \"handle\": \"@qudo_official\",\n  \"followers\": 12500\n}" }
+          }
+        },
+        {
+          "name": "🆕 DELETE /v1/users/me/channels/:platform — 채널 해제",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/users/me/channels/instagram" }
+        }
+      ]
+    },
+    {
+      "name": "Workspaces (워크스페이스)",
+      "item": [
+        {
+          "name": "GET /v1/workspaces — 목록 (status 필터)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/workspaces?status=ACTIVE",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "workspaces"],
+              "query": [{ "key": "status", "value": "ACTIVE" }]
+            }
+          }
+        },
+        {
+          "name": "POST /v1/workspaces — 생성",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/workspaces",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"카페청담 촬영\",\n  \"category\": \"FOOD\",\n  \"location\": \"서울 강남구 청담동\"\n}" }
+          }
+        },
+        {
+          "name": "GET /v1/workspaces/:id — 상세",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}" }
+        },
+        {
+          "name": "PATCH /v1/workspaces/:id/status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}/status",
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"COMPLETED\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /v1/workspaces/:id — 삭제 (소프트)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}" }
+        },
+        {
+          "name": "GET /v1/workspaces/:id/todos",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}/todos" }
+        },
+        {
+          "name": "POST /v1/workspaces/:id/todos — 투두 추가",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}/todos",
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"매장 외관 정면\",\n  \"order\": 0\n}" }
+          }
+        },
+        {
+          "name": "🆕 POST /v1/workspaces/:id/parse-campaign — Gemini 캠페인 파싱",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}/parse-campaign",
+            "body": { "mode": "raw", "raw": "{\n  \"text\": \"맛집 체험단 미션입니다. 매장 외관 1컷, 메뉴판 1컷, 메인 메뉴 클로즈업 2컷 필수입니다. 마감 2026-06-01. #광고 표기 필수.\",\n  \"applyTodos\": true\n}" }
+          },
+          "description": "응답: { todos[], deadline, legalNotices[], summary, appliedTodoIds[] }"
+        },
+        {
+          "name": "POST /v1/workspaces/:id/share — 공유 링크 생성",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}/share",
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"{{sharePassword}}\",\n  \"expiresInHours\": 72\n}" }
+          },
+          "description": "응답의 token 을 {{shareTokenWithPwd}} 또는 {{shareToken}} 변수에 저장하세요."
+        },
+        {
+          "name": "🆕 GET /v1/workspaces/share/:token — 공유 메타 (Public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/workspaces/share/{{shareTokenWithPwd}}"
+          },
+          "description": "비번 보호 링크면 passwordProtected:true, authenticated:false, workspace 미포함"
+        },
+        {
+          "name": "🆕 POST /v1/workspaces/share/:token/verify — 비번 검증 (Public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/workspaces/share/{{shareTokenWithPwd}}/verify",
+            "body": { "mode": "raw", "raw": "{\n  \"password\": \"{{sharePassword}}\"\n}" }
+          },
+          "description": "성공 시 authenticated:true + workspace 풀 데이터, 실패 시 401"
+        },
+        {
+          "name": "GET /v1/workspaces/:id/signature-shots",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/workspaces/{{workspaceId}}/signature-shots" }
+        }
+      ]
+    },
+    {
+      "name": "Todos (투두)",
+      "item": [
+        {
+          "name": "PATCH /v1/todos/:id/toggle — 상태 토글",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/v1/todos/{{todoId}}/toggle" }
+        },
+        {
+          "name": "PATCH /v1/todos/:id — 수정",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/todos/{{todoId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"label\": \"매장 외관 야경\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /v1/todos/:id",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/todos/{{todoId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Campaigns (캠페인)",
+      "item": [
+        {
+          "name": "GET /v1/campaigns — 목록 (Public)",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/v1/campaigns" }
+        },
+        {
+          "name": "GET /v1/campaigns/:id — 상세 (Public)",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/v1/campaigns/{{campaignId}}" }
+        },
+        {
+          "name": "GET /v1/campaigns/advertiser/list — 내 캠페인 목록 (광고주)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/campaigns/advertiser/list" }
+        },
+        {
+          "name": "POST /v1/campaigns — 등록",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/campaigns",
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"강남 스시 오마카세 체험단\",\n  \"category\": \"FOOD\",\n  \"location\": \"서울 강남구\",\n  \"slots\": 5,\n  \"reward\": \"식사 무료 제공\",\n  \"deadline\": \"2026-06-30\",\n  \"todoPreset\": [\"매장 외관\", \"메뉴판\", \"메인 메뉴 클로즈업\"]\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Applications (신청)",
+      "item": [
+        {
+          "name": "POST /v1/applications/campaign/:campaignId — 신청",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/applications/campaign/{{campaignId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"note\": \"인스타 팔로워 1.2만, 푸드 전문\"\n}" }
+          }
+        },
+        {
+          "name": "GET /v1/applications/me — 내 신청 목록",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/applications/me" }
+        },
+        {
+          "name": "GET /v1/applications/campaign/:campaignId/applicants — 신청자 목록 (광고주)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/applications/campaign/{{campaignId}}/applicants" }
+        },
+        {
+          "name": "🆕 PATCH /v1/applications/:id/select — 선정 (응답에 createdWorkspaceId)",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/v1/applications/{{applicationId}}/select" },
+          "description": "응답 형식 변경: { application, createdWorkspaceId }. 모바일은 createdWorkspaceId 로 자동 생성된 워크스페이스에 진입."
+        },
+        {
+          "name": "PATCH /v1/applications/:id/reject — 거절",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/v1/applications/{{applicationId}}/reject" }
+        }
+      ]
+    },
+    {
+      "name": "Shots (촬영물)",
+      "item": [
+        {
+          "name": "POST /v1/shots/confirm — 업로드 확정",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/shots/confirm",
+            "body": { "mode": "raw", "raw": "{\n  \"objectKey\": \"{{userId}}/cafe-chungdam/shots/...\",\n  \"todoId\": \"{{todoId}}\",\n  \"workspaceId\": \"{{workspaceId}}\"\n}" }
+          }
+        },
+        {
+          "name": "🆕 GET /v1/shots/batch?ids=... — ZIP 일괄 다운로드",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/shots/batch?ids={{shotId1}},{{shotId2}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "shots", "batch"],
+              "query": [{ "key": "ids", "value": "{{shotId1}},{{shotId2}}" }]
+            }
+          },
+          "description": "응답 = application/zip 스트림. Postman 의 \"Save Response → Save to file\" 로 다운로드."
+        },
+        {
+          "name": "GET /v1/shots/workspace/:workspaceId — 워크스페이스 사진 목록",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/shots/workspace/{{workspaceId}}" }
+        },
+        {
+          "name": "GET /v1/shots/:id/thumbnail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/shots/{{shotId1}}/thumbnail?w=300&h=300",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "shots", "{{shotId1}}", "thumbnail"],
+              "query": [{ "key": "w", "value": "300" }, { "key": "h", "value": "300" }]
+            }
+          }
+        },
+        {
+          "name": "GET /v1/shots/:id/image?download=true",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/v1/shots/{{shotId1}}/image?download=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "shots", "{{shotId1}}", "image"],
+              "query": [{ "key": "download", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "DELETE /v1/shots/:id",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/shots/{{shotId1}}" }
+        }
+      ]
+    },
+    {
+      "name": "Uploads (업로드)",
+      "item": [
+        {
+          "name": "POST /v1/uploads/presign — 촬영물 업로드 티켓",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/uploads/presign",
+            "body": { "mode": "raw", "raw": "{\n  \"fileName\": \"shot.jpg\",\n  \"contentType\": \"image/jpeg\",\n  \"workspaceId\": \"{{workspaceId}}\",\n  \"todoId\": \"{{todoId}}\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Badges / Notifications / Subscriptions",
+      "item": [
+        {
+          "name": "GET /v1/badges/me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/badges/me" }
+        },
+        {
+          "name": "GET /v1/notifications",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/notifications" }
+        },
+        {
+          "name": "PATCH /v1/notifications/:id/read",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/v1/notifications/{{notificationId}}/read" }
+        },
+        {
+          "name": "GET /v1/subscriptions/me",
+          "request": { "method": "GET", "url": "{{baseUrl}}/v1/subscriptions/me" }
+        },
+        {
+          "name": "POST /v1/subscriptions/upgrade",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/subscriptions/upgrade",
+            "body": { "mode": "raw", "raw": "{\n  \"plan\": \"PRO\",\n  \"period\": \"MONTHLY\"\n}" }
+          }
+        },
+        {
+          "name": "DELETE /v1/subscriptions/cancel",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/v1/subscriptions/cancel" }
+        }
+      ]
+    },
+    {
+      "name": "Smoke Test (인증 없이 즉시 검증 가능)",
+      "item": [
+        {
+          "name": "GET / — Hello World",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/" }
+        },
+        {
+          "name": "GET /docs — Swagger UI",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/docs" }
+        },
+        {
+          "name": "GET /v1/campaigns — Public",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/v1/campaigns" }
+        },
+        {
+          "name": "GET /v1/workspaces/share/:token — 잘못된 토큰 (404)",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/v1/workspaces/share/INVALID_TOKEN" },
+          "description": "404 + 'NOT_FOUND' 에러 형식 확인용"
+        },
+        {
+          "name": "POST /v1/auth/social — 잘못된 provider (400)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/v1/auth/social",
+            "body": { "mode": "raw", "raw": "{\n  \"provider\": \"naver\"\n}" }
+          },
+          "description": "accessToken 누락 → 400 BadRequest 검증"
+        }
+      ]
+    }
+  ]
+}

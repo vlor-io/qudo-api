@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Delete, Post, Body, UseGuards, Request, HttpCode, Param, ParseEnumPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { AuthService } from '@/auth/auth.service';
 import { UploadsService } from '@/uploads/uploads.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -20,6 +21,7 @@ import {
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
+    private readonly authService: AuthService,
     private readonly uploadsService: UploadsService,
   ) {}
 
@@ -74,10 +76,10 @@ export class UsersController {
   }
 
   @ApiOperation({
-    summary: '회원 탈퇴',
-    description: '계정을 소프트 삭제 처리합니다. 30일 이내 복구 가능합니다.',
+    summary: '회원 탈퇴 (영구 삭제)',
+    description: '계정과 모든 연관 데이터(워크스페이스/투두/촬영물/캠페인/신청/채널/알림/배지/구독/OAuth 연결)를 즉시 영구 삭제합니다. 복구 불가. provider 측 연결 해제는 best-effort (Kakao 만 실제 unlink 호출, Naver/Google 은 access_token 미보관으로 skip).',
   })
-  @ApiResponse({ status: 200, description: '탈퇴 성공' })
+  @ApiResponse({ status: 200, description: '탈뼈 성공 (모든 데이터 영구 삭제됨)' })
   @ApiNotFoundError({
     path: '/v1/users/me',
     description: '사용자 레코드 없음',
@@ -86,7 +88,7 @@ export class UsersController {
   @ApiStandardErrors('/v1/users/me')
   @Delete('me')
   async withdraw(@Request() req: any) {
-    await this.usersService.softDeleteUser(req.user.id);
+    await this.authService.withdrawUser(req.user.id);
     return { success: true, data: null };
   }
 

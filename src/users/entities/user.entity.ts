@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Channel } from './channel.entity';
 import { OAuthIdentity } from './oauth-identity.entity';
 import { ApiProperty } from '@nestjs/swagger';
@@ -62,10 +62,6 @@ export class User {
   @ApiProperty({ description: '정보 수정일' })
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @ApiProperty({ description: '탈퇴 처리일 (소프트 삭제)', required: false })
-  @DeleteDateColumn()
-  deletedAt: Date;
 
   @OneToMany(() => Channel, (channel) => channel.user)
   channels: Channel[];

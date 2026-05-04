@@ -1,17 +1,27 @@
 import { BadRequestException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
+import { createRemoteJWKSet, jwtVerify, JWTPayload } from 'jose';
 import { OAuthVerifier } from './oauth-verifier.interface';
 import { OAuthProfile } from '@/users/users.service';
 
+interface GoogleIdTokenPayload extends JWTPayload {
+  sub: string;
+  email?: string;
+  email_verified?: boolean | string;
+  name?: string;
+  picture?: string;
+}
+
 @Injectable()
 export class GoogleVerifier implements OAuthVerifier {
+  private readonly jwks = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+
   constructor(private readonly config: ConfigService) {}
 
   async verify(input: { accessToken?: string; idToken?: string }): Promise<OAuthProfile> {
     const idToken = input.idToken ?? input.accessToken;
     if (!idToken) {
-      throw new BadRequestException('Google 로그인은 idToken (또는 accessToken) 이 필요합니다.');
+      throw new BadRequestException('Google 로그인은 idToken 이 필요합니다.');
     }
 
     const allowedAuds = (this.config.get<string>('GOOGLE_CLIENT_IDS') ?? this.config.get<string>('GOOGLE_CLIENT_ID') ?? '')
@@ -22,33 +32,34 @@ export class GoogleVerifier implements OAuthVerifier {
       throw new ServiceUnavailableException('Google client_id 환경설정이 누락되었습니다.');
     }
 
-    let data: any;
+    let payload: GoogleIdTokenPayload;
     try {
-      const res = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
-        params: { id_token: idToken },
-        timeout: 5000,
+      const result = await jwtVerify(idToken, this.jwks, {
+        issuer: ['https://accounts.google.com', 'accounts.google.com'],
+        audience: allowedAuds,
       });
-      data = res.data;
-    } catch (e) {
-      if (axios.isAxiosError(e) && e.response?.status === 400) {
-        throw new UnauthorizedException('Google id_token 이 유효하지 않습니다.');
-      }
-      throw new ServiceUnavailableException('Google 인증 서버 호출에 실패했습니다.');
+      payload = result.payload as GoogleIdTokenPayload;
+    } catch {
+      throw new UnauthorizedException('Google id_token 검증에 실패했습니다 (서명/만료/aud/iss 불일치).');
     }
 
-    if (!allowedAuds.includes(data.aud)) {
-      throw new UnauthorizedException('Google client_id (aud) 가 허용 목록에 없습니다.');
-    }
-    const issuer = data.iss;
-    if (issuer !== 'https://accounts.google.com' && issuer !== 'accounts.google.com') {
-      throw new UnauthorizedException('Google issuer 가 유효하지 않습니다.');
+    if (!payload.sub) {
+      throw new UnauthorizedException('Google id_token 에 sub 가 없습니다.');
     }
 
+    const emailVerified = payload.email_verified === true || payload.email_verified === 'true';
     return {
-      providerId: data.sub,
-      email: data.email_verified === 'true' || data.email_verified === true ? data.email : undefined,
-      displayName: data.name,
-      avatarUri: data.picture,
+      providerId: payload.sub,
+      email: emailVerified ? payload.email : undefined,
+      displayName: payload.name,
+      avatarUri: payload.picture,
     };
+  }
+
+  /**
+   * Google revoke 는 access_token/refresh_token 영구 보관 필요. 본 설계는 보안 우선으로 보관 X → noop + log.
+   */
+  async revoke(providerId: string): Promise<void> {
+    console.warn(`[GoogleVerifier] revoke skipped (no token stored). providerId=${providerId}`);
   }
 }

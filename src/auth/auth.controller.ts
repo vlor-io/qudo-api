@@ -32,15 +32,15 @@ export class AuthController {
       'provider 누락': {
         code: 'BAD_REQUEST',
         message: 'Validation Failed',
-        details: ['provider must be one of the following values: kakao, naver, google, apple'],
+        details: ['provider must be one of the following values: kakao, naver, google'],
       },
-      'Apple idToken 누락': {
+      'Kakao/Google idToken 누락': {
         code: 'BAD_REQUEST',
-        message: 'Apple 로그인은 idToken 이 필요합니다.',
+        message: 'Kakao/Google 로그인은 idToken 이 필요합니다.',
       },
-      'Kakao accessToken 누락': {
+      'Naver accessToken 누락': {
         code: 'BAD_REQUEST',
-        message: '카카오 로그인은 accessToken 이 필요합니다.',
+        message: 'Naver 로그인은 accessToken 이 필요합니다.',
       },
     },
   })

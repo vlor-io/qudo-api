@@ -8,7 +8,6 @@ import { SocialLoginDto } from './dto/social-login.dto';
 import { KakaoVerifier } from './verifiers/kakao.verifier';
 import { NaverVerifier } from './verifiers/naver.verifier';
 import { GoogleVerifier } from './verifiers/google.verifier';
-import { AppleVerifier } from './verifiers/apple.verifier';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +18,6 @@ export class AuthService {
     private readonly kakaoVerifier: KakaoVerifier,
     private readonly naverVerifier: NaverVerifier,
     private readonly googleVerifier: GoogleVerifier,
-    private readonly appleVerifier: AppleVerifier,
   ) {}
 
   async socialLogin(dto: SocialLoginDto) {
@@ -57,6 +55,36 @@ export class AuthService {
     return this.usersService.listProvidersOfUser(userId);
   }
 
+  /**
+   * 회원탈뼈 — 모든 OAuthIdentity 의 provider 측 unlink 를 best-effort 시도 후 user 영구 삭제.
+   * DB CASCADE 가 모든 child 정리.
+   */
+  async withdrawUser(userId: string): Promise<void> {
+    const identities = await this.usersService.listProvidersOfUser(userId);
+
+    await Promise.allSettled(
+      identities.map(async (i) => {
+        try {
+          switch (i.provider) {
+            case OAuthProvider.KAKAO:
+              await this.kakaoVerifier.revoke(i.providerId);
+              break;
+            case OAuthProvider.NAVER:
+              await this.naverVerifier.revoke(i.providerId);
+              break;
+            case OAuthProvider.GOOGLE:
+              await this.googleVerifier.revoke(i.providerId);
+              break;
+          }
+        } catch (err) {
+          console.error(`[withdrawUser] ${i.provider} revoke failed for ${i.providerId}:`, err);
+        }
+      }),
+    );
+
+    await this.usersService.hardDeleteUser(userId);
+  }
+
   async refreshToken(oldRefreshToken: string) {
     try {
       const decoded = this.jwtService.verify(oldRefreshToken);
@@ -83,8 +111,6 @@ export class AuthService {
         return this.naverVerifier.verify(input);
       case OAuthProvider.GOOGLE:
         return this.googleVerifier.verify(input);
-      case OAuthProvider.APPLE:
-        return this.appleVerifier.verify(input);
       default:
         throw new BadRequestException('지원하지 않는 소셜 로그인 공급자입니다.');
     }

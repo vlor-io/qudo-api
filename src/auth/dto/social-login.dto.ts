@@ -12,8 +12,8 @@ export class SocialLoginDto {
   provider: OAuthProvider;
 
   @ApiProperty({
-    description: 'Kakao / Naver 필수. Google 은 idToken 미제공 시 사용',
-    example: 'kakao_oauth_access_token_example',
+    description: 'Naver 필수. (Naver 는 OIDC 미지원으로 access_token + nid/me API 검증 흐름 유지)',
+    example: 'naver_oauth_access_token_example',
     required: false,
   })
   @IsOptional()
@@ -21,7 +21,7 @@ export class SocialLoginDto {
   accessToken?: string;
 
   @ApiProperty({
-    description: 'Apple 필수, Google 권장. provider 가 발급한 ID Token (JWT)',
+    description: 'Kakao / Google 필수. provider 가 발급한 OIDC ID Token (JWT). 백엔드는 JWKS 로 서명만 검증 (외부 호출 0).',
     required: false,
   })
   @IsOptional()
@@ -29,7 +29,7 @@ export class SocialLoginDto {
   idToken?: string;
 
   @ApiProperty({
-    description: 'Apple 첫 로그인 보강용. provider 가 이름을 안 줄 때 클라이언트가 직접 전달',
+    description: 'provider 가 이름을 주지 않는 경우 클라이언트가 직접 전달 (선택)',
     required: false,
     example: '김스냅',
   })

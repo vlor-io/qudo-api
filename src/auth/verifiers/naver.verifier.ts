@@ -32,4 +32,11 @@ export class NaverVerifier implements OAuthVerifier {
       throw new ServiceUnavailableException('네이버 인증 서버 호출에 실패했습니다.');
     }
   }
+
+  /**
+   * Naver revoke 는 access_token + client_secret 필요. 본 설계는 access_token 영구 보관 X → noop + log.
+   */
+  async revoke(providerId: string): Promise<void> {
+    console.warn(`[NaverVerifier] revoke skipped (no access_token stored). providerId=${providerId}`);
+  }
 }
